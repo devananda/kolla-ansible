@@ -94,6 +94,22 @@ neutron_services:
       - "/run:/run:shared"
       - "neutron_metadata_socket:/var/lib/neutron/kolla/"
       - "kolla_logs:/var/log/kolla/"
+  neutron-l2gw-agent:
+    container_name: "neutron_l2gw_agent"
+    image: "{{ neutron_l2gw_agent_image_full }}"
+    privileged: True
+    enabled: "{{ enable_neutron_l2gw | bool and not enable_neutron_vpnaas | bool and neutron_plugin_agent not in ['vmware_nsxv', 'vmware_dvs'] and not enable_opendaylight_l3 | bool }}"
+    host_in_groups: >-
+      {{
+      inventory_hostname in groups['neutron-l2gw-agent']
+      }}
+    volumes:
+      - "{{ node_config_directory }}/neutron-l2gw-agent/:{{ container_config_directory }}/:ro"
+      - "/etc/localtime:/etc/localtime:ro"
+      - "/lib/modules:/lib/modules:ro"
+      - "/run:/run:shared"
+      - "neutron_metadata_socket:/var/lib/neutron/kolla/"
+      - "kolla_logs:/var/log/kolla/"
   neutron-lbaas-agent:
     container_name: "neutron_lbaas_agent"
     image: "{{ neutron_lbaas_agent_image_full }}"
@@ -167,6 +183,10 @@ neutron_dhcp_agent_image: "{{ docker_registry ~ '/' if docker_registry else '' }
 neutron_dhcp_agent_tag: "{{ neutron_tag }}"
 neutron_dhcp_agent_image_full: "{{ neutron_dhcp_agent_image }}:{{ neutron_dhcp_agent_tag }}"
 
+neutron_l2gw_agent_image: "{{ docker_registry ~ '/' if docker_registry else '' }}{{ docker_namespace }}/{{ kolla_base_distro }}-{{ neutron_install_type }}-neutron-l2gw-agent"
+neutron_l2gw_agent_tag: "{{ neutron_tag }}"
+neutron_l2gw_agent_image_full: "{{ neutron_l2gw_agent_image }}:{{ neutron_l2gw_agent_tag }}"
+
 neutron_l3_agent_image: "{{ docker_registry ~ '/' if docker_registry else '' }}{{ docker_namespace }}/{{ kolla_base_distro }}-{{ neutron_install_type }}-neutron-l3-agent"
 neutron_l3_agent_tag: "{{ neutron_tag }}"
 neutron_l3_agent_image_full: "{{ neutron_l3_agent_image }}:{{ neutron_l3_agent_tag }}"
@@ -198,7 +218,6 @@ neutron_vpnaas_agent_image_full: "{{ neutron_vpnaas_agent_image }}:{{ neutron_vp
 neutron_bgp_dragent_image: "{{ docker_registry ~ '/' if docker_registry else '' }}{{ docker_namespace }}/{{ kolla_base_distro }}-{{ neutron_install_type }}-neutron-bgp-dragent"
 neutron_bgp_dragent_tag: "{{ neutron_tag }}"
 neutron_bgp_dragent_image_full: "{{ neutron_bgp_dragent_image }}:{{ neutron_bgp_dragent_tag }}"
-
 
 ####################
 # OpenStack
@@ -251,6 +270,8 @@ service_plugins:
     enabled: "{{ enable_neutron_bgp_dragent | bool }}"
   - name: "{{ opendaylight_l3_service_plugin }}"
     enabled: "{{ enable_opendaylight_l3 | bool and enable_opendaylight | bool }}"
+  - name: "l2gw"
+    enabled: "{{ enable_neutron_l2gw | bool }}"
 
 neutron_service_plugins: "{{ service_plugins|selectattr('enabled', 'equalto', true)|list }}"
 
@@ -314,3 +335,8 @@ notification_drivers:
     enabled: "{{ enable_opendaylight_qos | bool }}"
 
 neutron_notification_drivers: "{{ notification_drivers|selectattr('enabled', 'equalto', true)|list }}"
+
+#########################
+# OVSDB settings for L2GW
+#########################
+# TODO

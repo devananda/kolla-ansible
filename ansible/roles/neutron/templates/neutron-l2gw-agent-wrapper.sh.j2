@@ -1,0 +1,6 @@
+#!/bin/bash
+
+set -o errexit
+
+neutron-l2gateway-agent \
+        --config-file /etc/neutron/l2gateway_agent.ini

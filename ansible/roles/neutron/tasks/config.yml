@@ -41,6 +41,7 @@
     services_need_neutron_conf:
       - "neutron-dhcp-agent"
       - "neutron-l3-agent"
+      - "neutron-l2gw-agent"
       - "neutron-linuxbridge-agent"
       - "neutron-metadata-agent"
       - "neutron-openvswitch-agent"
@@ -297,6 +298,7 @@
     services_need_policy_json:
       - "neutron-dhcp-agent"
       - "neutron-l3-agent"
+      - "neutron-l2gw-agent"
       - "neutron-linuxbridge-agent"
       - "neutron-metadata-agent"
       - "neutron-openvswitch-agent"
@@ -343,6 +345,57 @@
     - service.host_in_groups | bool
   notify:
     - "Restart {{ service_name }} container"
+
+- name: Copying over l2gateway_agent.ini
+  vars:
+    service_name: "{{ item.key }}"
+    services_need_l2gateway_agent_ini:
+      - "neutron-l2gw-agent"
+  merge_configs:
+    sources:
+      - "{{ role_path }}/templates/l2gateway_agent.ini.j2"
+    dest: "{{ node_config_directory }}/{{ service_name }}/l2gateway_agent.ini"
+  register: neutron_l2gw_agent_inis
+  when:
+    - item.key in services_need_l2gateway_agent_ini
+    - item.value.enabled | bool
+    - item.value.host_in_groups | bool
+  with_dict: "{{ neutron_services }}"
+  notify:
+    - "Restart {{ item.key }} container"
+
+- name: Copying over l2gw_plugin.ini
+  vars:
+    service_name: "{{ item.key }}"
+    services_need_l2gw_plugin_ini:
+      - "neutron-server"
+  merge_configs:
+    sources:
+      - "{{ role_path }}/templates/l2gw_plugin.ini.j2"
+    dest: "{{ node_config_directory }}/{{ service_name }}/l2gw_plugin.ini"
+  register: neutron_l2gw_plugin_inis
+  when:
+    - item.key in services_need_l2gw_plugin_ini
+    - item.value.enabled | bool
+    - item.value.host_in_groups | bool
+  with_dict: "{{ neutron_services }}"
+  notify:
+    - "Restart {{ item.key }} container"
+
+- name: Copy neutron-l2gw-agent-wrapper script
+  vars:
+    service_name: "neutron-l2gw-agent"
+    service: "{{ neutron_services[service_name] }}"
+  template:
+    src: neutron-l2gw-agent-wrapper.sh.j2
+    dest: "{{ node_config_directory }}/{{ service_name }}/neutron-l2gw-agent-wrapper.sh"
+  register: neutron_l2gw_agent_wrapper
+  when:
+    - service.enabled | bool
+    - service.host_in_groups | bool
+  notify:
+    - "Restart {{ service_name }} container"
+
 
 # TODO check the environment change
 - name: Check neutron containers
